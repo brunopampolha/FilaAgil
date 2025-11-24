@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FilaÁgil — Painel da Unidade</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th, td {
+        padding: 0.85rem;
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      th {
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+        color: #475569;
+      }
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.65rem;
+        border-radius: 999px;
+        font-weight: 600;
+        font-size: 0.85rem;
+      }
+      .waiting {
+        background: #fee2e2;
+        color: #991b1b;
+      }
+      .ok {
+        background: #dcfce7;
+        color: #166534;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Painel do Gestor</h1>
+      <p>Filas ativas por unidade, checkpoints de SLA e throughput básico.</p>
+    </header>
+    <main>
+      <section>
+        <div class="section-title">
+          <h2>Unidades monitoradas</h2>
+          <button id="refresh-dashboard">Atualizar</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Unidade</th>
+              <th>Em espera</th>
+              <th>Chamados</th>
+              <th>Concluídos</th>
+              <th>Espera média</th>
+              <th>Situação</th>
+            </tr>
+          </thead>
+          <tbody id="dashboard-body"></tbody>
+        </table>
+      </section>
+    </main>
+    <script>
+      const tbody = document.getElementById('dashboard-body');
+      const refreshBtn = document.getElementById('refresh-dashboard');
+
+      async function loadDashboard() {
+        const response = await fetch('/api/dashboard');
+        const data = await response.json();
+        tbody.innerHTML = '';
+        data.forEach((row) => {
+          const tr = document.createElement('tr');
+          const statusClass = row.avg_waiting_minutes > 40 || row.waiting_count > 15 ? 'waiting' : 'ok';
+          const statusText = statusClass === 'waiting' ? 'Atenção' : 'Dentro do SLA';
+          tr.innerHTML = `
+            <td>${row.unit_name}</td>
+            <td>${row.waiting_count || 0}</td>
+            <td>${row.called_count || 0}</td>
+            <td>${row.completed_count || 0}</td>
+            <td>${row.avg_waiting_minutes || 0} min</td>
+            <td><span class="status-pill ${statusClass}">${statusText}</span></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      refreshBtn.addEventListener('click', loadDashboard);
+      loadDashboard();
+    </script>
+  </body>
+</html>
