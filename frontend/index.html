@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FilaÁgil — Senha virtual e previsão</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>FilaÁgil</h1>
+      <p>Senha virtual, previsão de atendimento e lembretes inteligentes em serviços públicos.</p>
+    </header>
+    <main>
+      <section>
+        <div class="section-title">
+          <div>
+            <h2>Gerar senha virtual</h2>
+            <p>Escolha a unidade, o serviço e informe seu nome. Em segundos você recebe um código com previsão.</p>
+          </div>
+        </div>
+        <form id="ticket-form">
+          <label>
+            Unidade
+            <select id="unit-select" required>
+              <option value="" disabled selected>Selecione...</option>
+            </select>
+          </label>
+          <label>
+            Serviço
+            <select id="service-select" required>
+              <option value="" disabled selected>Selecione a unidade primeiro</option>
+            </select>
+          </label>
+          <label>
+            Nome completo
+            <input type="text" id="customer-name" required placeholder="Camila Santos" />
+          </label>
+          <label>
+            Tipo de atendimento
+            <select id="priority" required>
+              <option value="0" selected>Convencional</option>
+              <option value="1">Prioritário (60+, PcD, gestante)</option>
+              <option value="2">Alto risco / emergência leve</option>
+            </select>
+          </label>
+          <label style="align-self: end">
+            &nbsp;
+            <button type="submit">Emitir senha</button>
+          </label>
+        </form>
+        <div id="ticket-result" class="ticket-result"></div>
+      </section>
+
+      <section>
+        <div class="section-title">
+          <div>
+            <h2>Consultar status</h2>
+            <p>Já tem uma senha? Cole o número e acompanhe sua posição.</p>
+          </div>
+        </div>
+        <div id="ticket-lookup">
+          <input type="text" id="ticket-id-input" placeholder="Código da senha (ex.: A1B2)" />
+          <button id="lookup-button">Consultar</button>
+        </div>
+        <div id="ticket-status" class="ticket-result"></div>
+      </section>
+
+      <section>
+        <div class="section-title">
+          <div>
+            <h2>Filas em tempo real</h2>
+            <p>Veja todas as senhas na fila de cada unidade e deslize horizontalmente para explorar.</p>
+          </div>
+        </div>
+        <div class="queue-controls">
+          <label>
+            Unidade
+            <select id="queue-unit-select">
+              <option value="" disabled selected>Selecione uma unidade...</option>
+            </select>
+          </label>
+          <button id="refresh-queues" type="button">Atualizar fila</button>
+        </div>
+        <div class="queues-scroll" id="queue-list">
+          <p class="queue-empty">Selecione uma unidade para visualizar a fila.</p>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const unitsSelect = document.getElementById('unit-select');
+      const serviceSelect = document.getElementById('service-select');
+      const ticketForm = document.getElementById('ticket-form');
+      const ticketResult = document.getElementById('ticket-result');
+      const ticketLookup = document.getElementById('ticket-id-input');
+      const statusContainer = document.getElementById('ticket-status');
+      const lookupButton = document.getElementById('lookup-button');
+      const refreshQueuesBtn = document.getElementById('refresh-queues');
+      const queueUnitSelect = document.getElementById('queue-unit-select');
+      const queueList = document.getElementById('queue-list');
+
+      let unitsCache = [];
+
+      async function loadUnits() {
+        const response = await fetch('/api/units');
+        const data = await response.json();
+        unitsCache = data;
+        populateUnitSelect();
+        populateQueueUnitSelect();
+      }
+
+      function populateUnitSelect() {
+        unitsSelect.innerHTML = '<option disabled selected value="">Selecione...</option>';
+        unitsCache.forEach((unit) => {
+          const option = document.createElement('option');
+          option.value = unit.id;
+          option.textContent = `${unit.name} — ${unit.city}/${unit.state}`;
+          unitsSelect.appendChild(option);
+        });
+        if (unitsCache.length) {
+          updateServiceOptions(unitsCache[0].id);
+          unitsSelect.value = unitsCache[0].id;
+        }
+      }
+
+      function updateServiceOptions(unitId) {
+        const unit = unitsCache.find((u) => Number(u.id) === Number(unitId));
+        serviceSelect.innerHTML = '';
+        if (!unit) {
+          const placeholder = document.createElement('option');
+          placeholder.textContent = 'Selecione a unidade primeiro';
+          placeholder.disabled = true;
+          placeholder.selected = true;
+          serviceSelect.appendChild(placeholder);
+          return;
+        }
+        unit.services.forEach((service) => {
+          const option = document.createElement('option');
+          option.value = service.id;
+          option.textContent = `${service.name} · espera ~${service.estimated_wait_minutes} min`;
+          serviceSelect.appendChild(option);
+        });
+      }
+
+      function populateQueueUnitSelect() {
+        const previousValue = queueUnitSelect.value;
+        queueUnitSelect.innerHTML = '';
+        if (!unitsCache.length) {
+          const option = document.createElement('option');
+          option.textContent = 'Nenhuma unidade disponível';
+          option.disabled = true;
+          option.selected = true;
+          queueUnitSelect.appendChild(option);
+          queueList.innerHTML = '<p class="queue-empty">Cadastre unidades para acompanhar as filas.</p>';
+          return;
+        }
+        unitsCache.forEach((unit) => {
+          const option = document.createElement('option');
+          option.value = unit.id;
+          option.textContent = `${unit.name} — ${unit.city}/${unit.state}`;
+          queueUnitSelect.appendChild(option);
+        });
+        const selected =
+          unitsCache.find((unit) => Number(unit.id) === Number(previousValue))?.id || unitsCache[0].id;
+        queueUnitSelect.value = selected;
+        loadQueueForUnit(selected);
+      }
+
+      function formatPriority(level) {
+        if (level === 1) return 'Prioritário';
+        if (level === 2) return 'Emergência leve';
+        return 'Convencional';
+      }
+
+      function formatStatus(status) {
+        if (status === 'waiting') return 'Aguardando';
+        if (status === 'called') return 'Chamado';
+        if (status === 'completed') return 'Concluído';
+        return status;
+      }
+
+      function renderTicket(container, ticket, title) {
+        if (!ticket) {
+          container.classList.remove('active');
+          container.innerHTML = '';
+          return;
+        }
+        container.classList.add('active');
+        container.innerHTML = `
+          <h3>${title}</h3>
+            <div class="ticket-grid">
+              <div><span>Código</span><br>${ticket.code}</div>
+              <div><span>Unidade</span><br>${ticket.unit_name || ''}</div>
+              <div><span>Serviço</span><br>${ticket.service_name || ''}</div>
+              <div><span>Status</span><br>${formatStatus(ticket.status)}</div>
+              <div><span>Prioridade</span><br>${formatPriority(ticket.priority_level)}</div>
+            <div><span>Posição</span><br>${ticket.queue_position ?? '-'}</div>
+            <div><span>Tempo estimado</span><br>~${ticket.estimated_wait_minutes} min</div>
+            <div><span>Emitido em</span><br>${new Date(ticket.created_at).toLocaleString()}</div>
+          </div>
+        `;
+      }
+
+      async function loadQueueForUnit(unitId) {
+        if (!unitId) {
+          queueList.innerHTML = '<p class="queue-empty">Selecione uma unidade para visualizar a fila.</p>';
+          return;
+        }
+        queueList.innerHTML = '<p class="queue-empty">Carregando fila...</p>';
+        try {
+          const response = await fetch(`/api/units/${unitId}/queue`);
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Falha ao carregar fila');
+          }
+          const data = await response.json();
+          renderQueueCards(data.queue);
+        } catch (error) {
+          queueList.innerHTML = `<p class="queue-empty">${error.message}</p>`;
+        }
+      }
+
+      function renderQueueCards(queue) {
+        if (!queue || !queue.length) {
+          queueList.innerHTML =
+            '<p class="queue-empty">Nenhuma senha aguardando nesta unidade agora. Atualize em instantes.</p>';
+          return;
+        }
+        queueList.innerHTML = '';
+        queue.forEach((ticket) => {
+          const card = document.createElement('article');
+          card.className = 'queue-item';
+          const priorityClass = ticket.priority_level > 0 ? 'badge-priority' : 'badge-normal';
+          const positionLabel =
+            ticket.status === 'waiting'
+              ? ticket.queue_position
+                ? `${ticket.queue_position}º na fila`
+                : 'Aguardando'
+              : formatStatus(ticket.status);
+          card.innerHTML = `
+            <header>
+              <strong>${ticket.code}</strong>
+              <span class="badge ${priorityClass}">${formatPriority(ticket.priority_level)}</span>
+            </header>
+            <div class="queue-meta">
+              <div><strong>Serviço:</strong> ${ticket.service_name}</div>
+              <div><strong>Status:</strong> ${formatStatus(ticket.status)}</div>
+              <div><strong>Posição:</strong> ${positionLabel}</div>
+              <div><strong>Previsão:</strong> ~${ticket.estimated_wait_minutes} min</div>
+            </div>
+          `;
+          const removeButton = document.createElement('button');
+          removeButton.className = 'queue-remove';
+          removeButton.type = 'button';
+          removeButton.textContent = 'X';
+          removeButton.title = 'Remover da fila';
+          removeButton.addEventListener('click', (event) => {
+            event.stopPropagation();
+            handleRemoveTicket(ticket.code);
+          });
+          card.appendChild(removeButton);
+          queueList.appendChild(card);
+        });
+        queueList.scrollLeft = 0;
+      }
+
+      async function handleRemoveTicket(ticketCode) {
+        if (!ticketCode) return;
+        const confirmed = confirm(`Remover a senha ${ticketCode} da fila?`);
+        if (!confirmed) return;
+        try {
+          const response = await fetch(`/api/tickets/${encodeURIComponent(ticketCode)}`, {
+            method: 'DELETE',
+          });
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Falha ao remover');
+          }
+          await loadQueueForUnit(queueUnitSelect.value);
+        } catch (error) {
+          alert(error.message);
+        }
+      }
+
+      unitsSelect.addEventListener('change', (event) => {
+        updateServiceOptions(event.target.value);
+      });
+
+      ticketForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const payload = {
+          unit_id: Number(unitsSelect.value),
+          service_id: Number(serviceSelect.value),
+          customer_name: document.getElementById('customer-name').value.trim(),
+          priority_level: Number(document.getElementById('priority').value),
+        };
+
+        if (!payload.customer_name) {
+          alert('Informe o nome completo.');
+          return;
+        }
+
+        try {
+          const response = await fetch('/api/tickets', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Erro ao emitir senha');
+          }
+          const ticket = await response.json();
+          renderTicket(ticketResult, ticket, 'Senha emitida com sucesso');
+          loadUnits();
+        } catch (error) {
+          alert(error.message);
+        }
+      });
+
+      lookupButton.addEventListener('click', async () => {
+        const code = ticketLookup.value.trim().toUpperCase();
+        if (!code) {
+          alert('Informe o código recebido no app ou painel');
+          return;
+        }
+        try {
+          const response = await fetch(`/api/tickets/${encodeURIComponent(code)}`);
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Senha não encontrada');
+          }
+          const ticket = await response.json();
+          renderTicket(statusContainer, ticket, 'Status da sua senha');
+        } catch (error) {
+          alert(error.message);
+        }
+      });
+
+      queueUnitSelect.addEventListener('change', (event) => {
+        loadQueueForUnit(event.target.value);
+      });
+      refreshQueuesBtn.addEventListener('click', () => {
+        loadQueueForUnit(queueUnitSelect.value);
+      });
+
+      loadUnits();
+    </script>
+  </body>
+</html>
