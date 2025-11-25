@@ -1,0 +1,246 @@
+:root {
+  font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #0f172a;
+  background-color: #f8fafc;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(180deg, #ecf4ff 0%, #f8fafc 50%);
+}
+
+header {
+  background-color: #0f6ab4;
+  color: #fff;
+  padding: 2rem 1.5rem;
+  text-align: center;
+}
+
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+h1, h2, h3 {
+  margin-bottom: 0.5rem;
+}
+
+section {
+  background-color: #fff;
+  border-radius: 18px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 10px 30px rgba(15, 106, 180, 0.08);
+}
+
+form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+input, select {
+  margin-top: 0.35rem;
+  padding: 0.75rem;
+  border: 1px solid #cbd5f5;
+  border-radius: 12px;
+  font-size: 1rem;
+}
+
+button {
+  padding: 0.85rem 1.2rem;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 1rem;
+  background-color: #0f6ab4;
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(15, 106, 180, 0.25);
+}
+
+.section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.queue-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 1rem;
+  align-items: flex-end;
+}
+
+.queue-controls label {
+  flex: 1;
+  min-width: 220px;
+}
+
+.queues-scroll {
+  margin-top: 1rem;
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  scroll-snap-type: x proximity;
+}
+
+.queues-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+
+.queues-scroll::-webkit-scrollbar-thumb {
+  background-color: #bfdbfe;
+  border-radius: 999px;
+}
+
+.queue-item {
+  min-width: 250px;
+  border: 1px solid #dbeafe;
+  border-radius: 16px;
+  padding: 1rem;
+  background-color: #fff;
+  scroll-snap-align: start;
+  box-shadow: 0 10px 25px rgba(15, 106, 180, 0.08);
+  position: relative;
+}
+
+.queue-item header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.queue-item h3 {
+  margin: 0;
+}
+
+.queue-remove {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  border: none;
+  background: #fee2e2;
+  color: #991b1b;
+  border-radius: 999px;
+  width: 32px;
+  height: 32px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(153, 27, 27, 0.15);
+}
+
+.queue-remove:hover {
+  background: #fecaca;
+}
+
+.queue-meta {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.92rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.badge-priority {
+  background-color: #fde68a;
+  color: #92400e;
+}
+
+.badge-normal {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+.ticket-result {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 16px;
+  background-color: #ecfccb;
+  border: 1px solid #bef264;
+  display: none;
+}
+
+.ticket-result.active {
+  display: block;
+}
+
+.ticket-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 0.75rem;
+  font-size: 0.95rem;
+}
+
+.ticket-grid span {
+  font-weight: 600;
+}
+
+#ticket-lookup {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+#ticket-lookup input {
+  flex: 1;
+}
+
+@media (max-width: 600px) {
+  section {
+    padding: 1rem;
+  }
+
+  .section-title {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  #ticket-lookup {
+    flex-direction: column;
+  }
+  .queue-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .queue-item {
+    min-width: 80%;
+  }
+}
+
+.queue-empty {
+  color: #475569;
+  font-size: 0.95rem;
+}
